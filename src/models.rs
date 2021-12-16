@@ -1,39 +1,130 @@
 use crate::rendering::{DirectionalAnimation, WINDOW_HEIGHT, WINDOW_WIDTH};
+use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 // use sdl2::render::*;
 
-enum PlayerState {
-    Attack,
-    Death,
-    Idle,
-    Moving,
-    TakingDamage,
+#[derive(Clone, Copy)]
+pub enum Direction {
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
+}
+
+#[derive(Clone, Copy)]
+pub enum PlayerState {
+    Moving = 0,
+    Idle = 1,
+    Attack = 2,
+    Death = 3,
+    TakingDamage = 4,
 }
 
 struct PlayerSprites {
-    attack: DirectionalAnimation,
-    down: DirectionalAnimation,
-    left: DirectionalAnimation,
-    right: DirectionalAnimation,
+    sprites: Vec<DirectionalAnimation>,
+}
+
+impl PlayerSprites {
+    pub fn get_sprites(&mut self, state: PlayerState) -> &mut DirectionalAnimation {
+        &mut self.sprites[state as usize]
+    }
+
+    pub fn new<'a, T>(
+        textures: &mut Vec<Texture<'a>>,
+        texture_creator: &'a TextureCreator<T>,
+        sprite_dir: &str,
+        wh_list: Vec<Vec<(u32, u32)>>,
+    ) -> Self {
+        let names = vec!["Movement", "Idle", "Attack", "Death", "Taking damage"];
+
+        let mut sprites = Vec::with_capacity(5);
+
+        for (name, wh) in names.iter().zip(wh_list.into_iter()) {
+            sprites.push(
+                DirectionalAnimation::new(sprite_dir, wh, name, texture_creator, textures).unwrap(),
+            );
+        }
+
+        Self { sprites }
+    }
 }
 
 pub struct Player {
-    x: i8,
-    y: i8,
+    x: i32,
+    y: i32,
+    pub direction: Direction,
     sprites: PlayerSprites,
-    sprite_width: u32,
-    sprite_height: u32,
+    pub state: PlayerState,
 }
 
 impl Player {
-    pub fn move_to(&mut self, x: i8, y: i8) -> Result<(), String> {
+    pub fn new<'a, T>(
+        x: i32,
+        y: i32,
+        textures: &mut Vec<Texture<'a>>,
+        texture_creator: &'a TextureCreator<T>,
+        sprite_dir: &str,
+        wh_list: Vec<Vec<(u32, u32)>>,
+    ) -> Self {
+        let sprites = PlayerSprites::new(textures, texture_creator, sprite_dir, wh_list);
+        let direction = Direction::Down;
+        let state = PlayerState::Idle;
+
+        Player {
+            x,
+            y,
+            sprites,
+            direction,
+            state,
+        }
+    }
+
+    pub fn render_frame(&mut self, canvas: &mut WindowCanvas, textures: &Vec<Texture>) {
+        self.sprites
+            .get_sprites(self.state)
+            .get_sprite(self.direction)
+            .draw_animated(self.x * 16, self.y * 16, textures, canvas);
+    }
+
+    pub fn control(&mut self, event_pump: &sdl2::EventPump) -> Result<(), String> {
+        use sdl2::keyboard::Scancode;
+
+        let kb_state = event_pump.keyboard_state();
+
+        if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
+            self.move_to(self.x, self.y - 1)?;
+            Ok(self.direction = Direction::Up)
+        } else if kb_state.is_scancode_pressed(Scancode::Down)
+            || kb_state.is_scancode_pressed(Scancode::S)
+        {
+            self.move_to(self.x, self.y + 1)?;
+            Ok(self.direction = Direction::Down)
+        } else if kb_state.is_scancode_pressed(Scancode::Left)
+            || kb_state.is_scancode_pressed(Scancode::A)
+        {
+            self.move_to(self.x - 1, self.y)?;
+            Ok(self.direction = Direction::Left)
+        } else if kb_state.is_scancode_pressed(Scancode::Right)
+            || kb_state.is_scancode_pressed(Scancode::D)
+        {
+            self.move_to(self.x + 1, self.y)?;
+            Ok(self.direction = Direction::Right)
+        } else if kb_state.is_scancode_pressed(Scancode::Z) {
+            Ok(self.state = PlayerState::Attack)
+        } else {
+            Ok(self.state = PlayerState::Idle)
+        }
+    }
+
+    pub fn move_to(&mut self, x: i32, y: i32) -> Result<(), String> {
         if x < 0
-            || x >= (WINDOW_WIDTH / self.sprite_width) as i8
+            || x >= (WINDOW_WIDTH / 16 * 63) as i32
             || y < 0
-            || y >= (WINDOW_HEIGHT / self.sprite_height) as i8
+            || y >= (WINDOW_HEIGHT / 16 * 63) as i32
         {
             return Err("Tried to move off the board".to_string());
         }
 
+        self.state = PlayerState::Moving;
         let x_movement = (self.x as i32 - x as i32).abs();
         let y_movement = (self.y as i32 - y as i32).abs();
 
@@ -46,18 +137,6 @@ impl Player {
 
         self.x = x;
         self.y = y;
-
-        // if state.grid[x as usize][y as usize] == TileType::Tomato {
-        //     state.grid[x as usize][y as usize] = TileType::Grass;
-        //     state.score += 1;
-        //     state.tomatoes -= 1;
-
-        //     if state.tomatoes == 0 {
-        //         state.level += 1;
-        //         let rng = rand::thread_rng();
-        //         init_grid(rng, state);
-        //     }
-        // }
 
         Ok(())
     }

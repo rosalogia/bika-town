@@ -1,21 +1,22 @@
 use sdl2::image::*;
 use sdl2::render::*;
 
+use crate::models::Direction;
+
 pub static WINDOW_WIDTH: u32 = 1008;
 pub static WINDOW_HEIGHT: u32 = 1008;
 
 pub struct DirectionalAnimation {
-    pub up: SpriteSheet,
-    pub down: SpriteSheet,
-    pub left: SpriteSheet,
-    pub right: SpriteSheet,
+    sprites: Vec<SpriteSheet>,
 }
 
 impl DirectionalAnimation {
+    pub fn get_sprite(&mut self, direction: Direction) -> &mut SpriteSheet {
+        &mut self.sprites[direction as usize]
+    }
     pub fn new<'a, T>(
         sprite_dir: &str,
-        (lr_width, lr_height): (u32, u32),
-        (ud_width, ud_height): (u32, u32),
+        wh_list: Vec<(u32, u32)>,
         sprite_name: &str,
         texture_creator: &'a TextureCreator<T>,
         textures: &mut Vec<Texture<'a>>,
@@ -42,8 +43,7 @@ impl DirectionalAnimation {
                 match direction {
                     "Up" => {
                         up = Some(SpriteSheet::new(
-                            ud_width,
-                            ud_height,
+                            wh_list[Direction::Up as usize],
                             textures,
                             texture_creator,
                             &sprite_path,
@@ -51,8 +51,7 @@ impl DirectionalAnimation {
                     }
                     "Down" => {
                         down = Some(SpriteSheet::new(
-                            ud_width,
-                            ud_height,
+                            wh_list[Direction::Down as usize],
                             textures,
                             texture_creator,
                             &sprite_path,
@@ -60,8 +59,7 @@ impl DirectionalAnimation {
                     }
                     "Left" => {
                         left = Some(SpriteSheet::new(
-                            lr_width,
-                            lr_height,
+                            wh_list[Direction::Left as usize],
                             textures,
                             texture_creator,
                             &sprite_path,
@@ -69,8 +67,7 @@ impl DirectionalAnimation {
                     }
                     "Right" => {
                         right = Some(SpriteSheet::new(
-                            lr_width,
-                            lr_height,
+                            wh_list[Direction::Right as usize],
                             textures,
                             texture_creator,
                             &sprite_path,
@@ -85,12 +82,10 @@ impl DirectionalAnimation {
 
         use std::io::{Error, ErrorKind};
         match (up, down, left, right) {
-            (Some(up), Some(down), Some(left), Some(right)) => Ok(DirectionalAnimation {
-                up,
-                down,
-                left,
-                right,
-            }),
+            (Some(up), Some(down), Some(left), Some(right)) => {
+                let sprites = vec![up, down, left, right];
+                Ok(DirectionalAnimation { sprites })
+            }
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!(
@@ -113,8 +108,7 @@ pub struct SpriteSheet {
 
 impl SpriteSheet {
     pub fn new<'a, T>(
-        sprite_width: u32,
-        sprite_height: u32,
+        sprite_wh: (u32, u32),
         textures: &mut Vec<Texture<'a>>,
         texture_creator: &'a TextureCreator<T>,
         path: &str,
@@ -124,6 +118,8 @@ impl SpriteSheet {
             let tq = texture.query();
             (tq.width, tq.height)
         };
+
+        let (sprite_width, sprite_height) = sprite_wh;
 
         textures.push(texture);
         let texture_id = textures.len() - 1;
