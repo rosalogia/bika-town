@@ -1,6 +1,6 @@
 use crate::rendering::{DirectionalAnimation, WINDOW_HEIGHT, WINDOW_WIDTH};
 use sdl2::render::{Texture, TextureCreator, WindowCanvas};
-// use sdl2::render::*;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
 pub enum Direction {
@@ -29,7 +29,7 @@ impl PlayerSprites {
     }
 
     pub fn new<'a, T>(
-        textures: &mut Vec<Texture<'a>>,
+        texture_map: &mut HashMap<String, Texture<'a>>,
         texture_creator: &'a TextureCreator<T>,
         sprite_dir: &str,
         wh_list: Vec<Vec<(u32, u32)>>,
@@ -40,7 +40,8 @@ impl PlayerSprites {
 
         for (name, wh) in names.iter().zip(wh_list.into_iter()) {
             sprites.push(
-                DirectionalAnimation::new(sprite_dir, wh, name, texture_creator, textures).unwrap(),
+                DirectionalAnimation::new(sprite_dir, wh, name, texture_creator, texture_map)
+                    .unwrap(),
             );
         }
 
@@ -60,12 +61,12 @@ impl Player {
     pub fn new<'a, T>(
         x: i32,
         y: i32,
-        textures: &mut Vec<Texture<'a>>,
+        texture_map: &mut HashMap<String, Texture<'a>>,
         texture_creator: &'a TextureCreator<T>,
         sprite_dir: &str,
         wh_list: Vec<Vec<(u32, u32)>>,
     ) -> Self {
-        let sprites = PlayerSprites::new(textures, texture_creator, sprite_dir, wh_list);
+        let sprites = PlayerSprites::new(texture_map, texture_creator, sprite_dir, wh_list);
         let direction = Direction::Down;
         let state = PlayerState::Idle;
 
@@ -78,11 +79,15 @@ impl Player {
         }
     }
 
-    pub fn render_frame(&mut self, canvas: &mut WindowCanvas, textures: &Vec<Texture>) {
+    pub fn render_frame(
+        &mut self,
+        canvas: &mut WindowCanvas,
+        texture_map: &HashMap<String, Texture>,
+    ) {
         self.sprites
             .get_sprites(self.state)
             .get_sprite(self.direction)
-            .draw_animated(self.x * 16, self.y * 16, textures, canvas);
+            .draw_animated(self.x * 16, self.y * 16, texture_map, canvas);
     }
 
     pub fn control(&mut self, event_pump: &sdl2::EventPump) -> Result<(), String> {

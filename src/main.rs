@@ -1,5 +1,6 @@
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
+use std::collections::HashMap;
 
 mod models;
 mod rendering;
@@ -23,11 +24,12 @@ fn main() {
     canvas.set_scale(2.0, 2.0).unwrap();
 
     let texture_creator = canvas.texture_creator();
-    let mut textures: Vec<Texture> = vec![];
+    let mut texture_map: HashMap<String, Texture> = HashMap::new();
 
     let tile_sheet = SpriteSheet::new(
         (16, 16),
-        &mut textures,
+        Some("tiles"),
+        &mut texture_map,
         &texture_creator,
         "Assets/Tiles.png",
     );
@@ -35,7 +37,7 @@ fn main() {
     let mut player = Player::new(
         0,
         0,
-        &mut textures,
+        &mut texture_map,
         &texture_creator,
         "Assets/Warrior",
         vec![
@@ -57,10 +59,10 @@ fn main() {
         canvas.clear();
 
         // Load the tilemap file and draw it onto the canvas
-        tile_sheet.draw_map(&textures, &mut canvas, "Assets/map.tmx");
+        tile_sheet.draw_map(&texture_map, &mut canvas, "Assets/map.tmx");
 
         // Render the player's current animation frame
-        player.render_frame(&mut canvas, &textures);
+        player.render_frame(&mut canvas, &texture_map);
 
         let mut event_pump = sdl_ctx.event_pump().unwrap();
 

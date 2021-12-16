@@ -1,5 +1,6 @@
 use sdl2::image::*;
 use sdl2::render::*;
+use std::collections::HashMap;
 
 use crate::models::Direction;
 
@@ -19,7 +20,7 @@ impl DirectionalAnimation {
         wh_list: Vec<(u32, u32)>,
         sprite_name: &str,
         texture_creator: &'a TextureCreator<T>,
-        textures: &mut Vec<Texture<'a>>,
+        texture_map: &mut HashMap<String, Texture<'a>>,
     ) -> Result<Self, std::io::Error> {
         let mut up: Option<SpriteSheet> = None;
         let mut down: Option<SpriteSheet> = None;
@@ -44,7 +45,8 @@ impl DirectionalAnimation {
                     "Up" => {
                         up = Some(SpriteSheet::new(
                             wh_list[Direction::Up as usize],
-                            textures,
+                            None,
+                            texture_map,
                             texture_creator,
                             &sprite_path,
                         ))
@@ -52,7 +54,8 @@ impl DirectionalAnimation {
                     "Down" => {
                         down = Some(SpriteSheet::new(
                             wh_list[Direction::Down as usize],
-                            textures,
+                            None,
+                            texture_map,
                             texture_creator,
                             &sprite_path,
                         ))
@@ -60,7 +63,8 @@ impl DirectionalAnimation {
                     "Left" => {
                         left = Some(SpriteSheet::new(
                             wh_list[Direction::Left as usize],
-                            textures,
+                            None,
+                            texture_map,
                             texture_creator,
                             &sprite_path,
                         ))
@@ -68,7 +72,8 @@ impl DirectionalAnimation {
                     "Right" => {
                         right = Some(SpriteSheet::new(
                             wh_list[Direction::Right as usize],
-                            textures,
+                            None,
+                            texture_map,
                             texture_creator,
                             &sprite_path,
                         ))
@@ -101,15 +106,15 @@ pub struct SpriteSheet {
     sprite_width: u32,
     sprite_height: u32,
     sprites: Vec<sdl2::rect::Rect>,
-    pub texture_id: usize,
-    path: String,
+    pub texture_id: String,
     animation_counter: u32,
 }
 
 impl SpriteSheet {
     pub fn new<'a, T>(
         sprite_wh: (u32, u32),
-        textures: &mut Vec<Texture<'a>>,
+        texture_id: Option<&str>,
+        texture_map: &mut HashMap<String, Texture<'a>>,
         texture_creator: &'a TextureCreator<T>,
         path: &str,
     ) -> Self {
@@ -121,8 +126,13 @@ impl SpriteSheet {
 
         let (sprite_width, sprite_height) = sprite_wh;
 
-        textures.push(texture);
-        let texture_id = textures.len() - 1;
+        let texture_id_key = String::from(match texture_id {
+            Some(id) => id,
+            None => path,
+        });
+
+        let texture_id = texture_id_key.clone();
+        texture_map.insert(texture_id_key, texture);
 
         let (h_size, v_size) = ((max_width / sprite_width), (max_height / sprite_height));
         let mut sprites: Vec<sdl2::rect::Rect> = Vec::with_capacity((h_size * v_size) as usize);
@@ -139,14 +149,11 @@ impl SpriteSheet {
             }
         }
 
-        let path = String::from(path);
-
         Self {
             sprite_width,
             sprite_height,
             sprites,
             texture_id,
-            path,
             animation_counter: 0,
         }
     }
@@ -156,10 +163,10 @@ impl SpriteSheet {
         i: usize,
         x: i32,
         y: i32,
-        textures: &Vec<Texture>,
+        texture_map: &HashMap<String, Texture>,
         canvas: &mut WindowCanvas,
     ) {
-        let texture = &textures[self.texture_id];
+        let texture = texture_map.get(&self.texture_id).unwrap();
         let sprite = self.sprites[i];
         let dst = sdl2::rect::Rect::new(x, y, self.sprite_width, self.sprite_height);
         canvas.copy(&texture, sprite, dst).unwrap();
@@ -169,21 +176,26 @@ impl SpriteSheet {
         &mut self,
         x: i32,
         y: i32,
-        textures: &Vec<Texture>,
+        texture_map: &HashMap<String, Texture>,
         canvas: &mut WindowCanvas,
     ) {
         self.draw_to(
             self.animation_counter as usize % self.sprites.len(),
             x,
             y,
-            textures,
+            texture_map,
             canvas,
         );
 
         self.animation_counter += 1;
     }
 
-    pub fn draw_map(&self, textures: &Vec<Texture>, canvas: &mut WindowCanvas, tilemap_path: &str) {
+    pub fn draw_map(
+        &self,
+        texture_map: &HashMap<String, Texture>,
+        canvas: &mut WindowCanvas,
+        tilemap_path: &str,
+    ) {
         let tilemap = tiled::parse_file(std::path::Path::new(tilemap_path)).unwrap();
         let layer_data = match &tilemap.layers[0].tiles {
             tiled::LayerData::Finite(tiles) => tiles,
@@ -201,7 +213,7 @@ impl SpriteSheet {
                     (gid - tileset.first_gid) as usize,
                     (i * 16) as i32,
                     (j * 16) as i32,
-                    textures,
+                    texture_map,
                     canvas,
                 );
             }
