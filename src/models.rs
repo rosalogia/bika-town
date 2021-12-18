@@ -52,6 +52,7 @@ impl PlayerSprites {
 pub struct Player {
     x: i32,
     y: i32,
+    movement_speed: i32,
     pub direction: Direction,
     sprites: PlayerSprites,
     pub state: PlayerState,
@@ -73,6 +74,7 @@ impl Player {
         Player {
             x,
             y,
+            movement_speed: 1,
             sprites,
             direction,
             state,
@@ -87,7 +89,7 @@ impl Player {
         self.sprites
             .get_sprites(self.state)
             .get_sprite(self.direction)
-            .draw_animated(self.x * 16, self.y * 16, texture_map, canvas);
+            .draw_animated(self.x, self.y, texture_map, canvas);
     }
 
     pub fn control(&mut self, event_pump: &sdl2::EventPump) -> Result<(), String> {
@@ -95,29 +97,43 @@ impl Player {
 
         let kb_state = event_pump.keyboard_state();
 
+        self.movement_speed = if kb_state.is_scancode_pressed(Scancode::Space) {
+            2
+        } else {
+            1
+        };
+        let move_by = self.movement_speed * 4;
+
         if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
-            self.move_to(self.x, self.y - 1)?;
-            Ok(self.direction = Direction::Up)
-        } else if kb_state.is_scancode_pressed(Scancode::Down)
-            || kb_state.is_scancode_pressed(Scancode::S)
+            self.move_to(self.x, self.y - move_by)?;
+            return Ok(self.direction = Direction::Up);
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Down) || kb_state.is_scancode_pressed(Scancode::S)
         {
-            self.move_to(self.x, self.y + 1)?;
-            Ok(self.direction = Direction::Down)
-        } else if kb_state.is_scancode_pressed(Scancode::Left)
-            || kb_state.is_scancode_pressed(Scancode::A)
+            self.move_to(self.x, self.y + move_by)?;
+            return Ok(self.direction = Direction::Down);
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Left) || kb_state.is_scancode_pressed(Scancode::A)
         {
-            self.move_to(self.x - 1, self.y)?;
-            Ok(self.direction = Direction::Left)
-        } else if kb_state.is_scancode_pressed(Scancode::Right)
+            self.move_to(self.x - move_by, self.y)?;
+            return Ok(self.direction = Direction::Left);
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Right)
             || kb_state.is_scancode_pressed(Scancode::D)
         {
-            self.move_to(self.x + 1, self.y)?;
-            Ok(self.direction = Direction::Right)
-        } else if kb_state.is_scancode_pressed(Scancode::Z) {
-            Ok(self.state = PlayerState::Attack)
-        } else {
-            Ok(self.state = PlayerState::Idle)
+            self.move_to(self.x + move_by, self.y)?;
+            return Ok(self.direction = Direction::Right);
         }
+
+        if kb_state.is_scancode_pressed(Scancode::Z) {
+            return Ok(self.state = PlayerState::Attack);
+        }
+
+        self.movement_speed = 1;
+        Ok(self.state = PlayerState::Idle)
     }
 
     pub fn move_to(&mut self, x: i32, y: i32) -> Result<(), String> {
@@ -133,7 +149,7 @@ impl Player {
         let x_movement = (self.x as i32 - x as i32).abs();
         let y_movement = (self.y as i32 - y as i32).abs();
 
-        if x_movement != 0 && y_movement != 0 || x_movement > 1 || y_movement > 1 {
+        if x_movement != 0 && y_movement != 0 {
             return Err(format!(
                 "Invalid move attempted from ({}, {}) to ({}, {})",
                 self.x, self.y, x, y

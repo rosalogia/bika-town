@@ -39,7 +39,7 @@ fn main() {
         0,
         &mut texture_map,
         &texture_creator,
-        "Assets/Warrior",
+        "Assets/Animation/Main_heroes/Warrior",
         vec![
             vec![(72 / 4, 28), (72 / 4, 28), (68 / 4, 27), (68 / 4, 27)],
             vec![(72 / 4, 27), (72 / 4, 27), (68 / 4, 27), (68 / 4, 27)],
@@ -54,9 +54,14 @@ fn main() {
         ],
     );
 
+    let mut then: std::time::Instant;
+    let mut now: std::time::Instant;
+
     'running: loop {
         canvas.set_draw_color(Color::RGB(105, 6, 255));
         canvas.clear();
+
+        then = std::time::Instant::now();
 
         // Load the tilemap file and draw it onto the canvas
         tile_sheet.draw_map(&texture_map, &mut canvas, "Assets/map.tmx");
@@ -64,11 +69,11 @@ fn main() {
         // Render the player's current animation frame
         player.render_frame(&mut canvas, &texture_map);
 
+
         let mut event_pump = sdl_ctx.event_pump().unwrap();
 
         // Hand off event handling to the player
         // until they're done moving
-        match player.control(&event_pump) {
             Ok(_) => (),
             Err(e) => println!("{}", e),
         }
@@ -89,6 +94,9 @@ fn main() {
         }
 
         canvas.present();
-        std::thread::sleep(std::time::Duration::new(0, 1_000_000_000 / 60));
+        now = std::time::Instant::now();
+        if now - then < std::time::Duration::new(0, 1_000_000_000 / 20) {
+            std::thread::sleep(std::time::Duration::new(0, 1_000_000_000 / 20) - (now - then));
+        }
     }
 }
