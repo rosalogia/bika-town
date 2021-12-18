@@ -31,7 +31,7 @@ fn main() {
         Some("tiles"),
         &mut texture_map,
         &texture_creator,
-        "Assets/Tiles.png",
+        "Assets/Proprietary/Tiles/Tiles.png",
     );
 
     let mut player = Player::new(
@@ -39,7 +39,7 @@ fn main() {
         0,
         &mut texture_map,
         &texture_creator,
-        "Assets/Animation/Main_heroes/Warrior",
+        "Assets/Proprietary/Animation/Main_heroes/Warrior",
         vec![
             vec![(72 / 4, 28), (72 / 4, 28), (68 / 4, 27), (68 / 4, 27)],
             vec![(72 / 4, 27), (72 / 4, 27), (68 / 4, 27), (68 / 4, 27)],
