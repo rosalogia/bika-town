@@ -34,6 +34,38 @@ fn main() {
         "Assets/Proprietary/Tiles/Tiles.png",
     );
 
+    let warrior_ui = SpriteSheet::new(
+        (103, 46),
+        Some("UI"),
+        &mut texture_map,
+        &texture_creator,
+        "Assets/Proprietary/UI/Detailed_option/Detailed_option_Warrior.png",
+    );
+
+    let health_bar = SpriteSheet::new(
+        (41, 6),
+        Some("Health Bar"),
+        &mut texture_map,
+        &texture_creator,
+        "Assets/Proprietary/UI/Detailed_option/Health_bar.png",
+    );
+
+    let magic_bar = SpriteSheet::new(
+        (40, 6),
+        Some("Magic Bar"),
+        &mut texture_map,
+        &texture_creator,
+        "Assets/Proprietary/UI/Detailed_option/Magic_bar.png",
+    );
+
+    let experience_bar = SpriteSheet::new(
+        (41, 6),
+        Some("Experience Bar"),
+        &mut texture_map,
+        &texture_creator,
+        "Assets/Proprietary/UI/Detailed_option/Experience_bar.png",
+    );
+
     let mut player = Player::new(
         0,
         0,
@@ -69,11 +101,16 @@ fn main() {
         // Render the player's current animation frame
         player.render_frame(&mut canvas, &texture_map);
 
+        warrior_ui.draw_to(0, 0, 0, &mut texture_map, &mut canvas);
+        health_bar.draw_to(0, 49, 5, &mut texture_map, &mut canvas);
+        magic_bar.draw_to(0, 61, 20, &mut texture_map, &mut canvas);
+        experience_bar.draw_to(0, 49, 35, &mut texture_map, &mut canvas);
 
         let mut event_pump = sdl_ctx.event_pump().unwrap();
 
-        // Hand off event handling to the player
-        // until they're done moving
+        match player.control(&mut event_pump) {
+            // Hand off event handling to the player
+            // until they're done moving
             Ok(_) => (),
             Err(e) => println!("{}", e),
         }
