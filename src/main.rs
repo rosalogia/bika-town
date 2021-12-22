@@ -1,9 +1,11 @@
+use legion::*;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 use std::collections::HashMap;
 
 mod models;
 mod rendering;
+mod util;
 
 use models::*;
 use rendering::*;
@@ -23,54 +25,60 @@ fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     canvas.set_scale(2.0, 2.0).unwrap();
 
+    // Texture and SpriteSheet loading and creation
+    let mut world = World::default();
     let texture_creator = canvas.texture_creator();
+    let mut directional_sprite_map: HashMap<u32, Vec<DirectionalAnimation>> = HashMap::new();
     let mut texture_map: HashMap<String, Texture> = HashMap::new();
+
+    let mut global_state = util::GlobalState {
+        last_id: 0,
+        world,
+        canvas,
+        texture_creator,
+        texture_map,
+        directional_sprite_map,
+    };
 
     let tile_sheet = SpriteSheet::new(
         (16, 16),
         Some("tiles"),
-        &mut texture_map,
-        &texture_creator,
+        &mut global_state,
         "Assets/Proprietary/Tiles/Tiles.png",
     );
 
     let warrior_ui = SpriteSheet::new(
         (103, 46),
         Some("UI"),
-        &mut texture_map,
-        &texture_creator,
+        &mut global_state,
         "Assets/Proprietary/UI/Detailed_option/Detailed_option_Warrior.png",
     );
 
     let health_bar = SpriteSheet::new(
         (41, 6),
         Some("Health Bar"),
-        &mut texture_map,
-        &texture_creator,
+        &mut global_state,
         "Assets/Proprietary/UI/Detailed_option/Health_bar.png",
     );
 
     let magic_bar = SpriteSheet::new(
         (40, 6),
         Some("Magic Bar"),
-        &mut texture_map,
-        &texture_creator,
+        &mut global_state,
         "Assets/Proprietary/UI/Detailed_option/Magic_bar.png",
     );
 
     let experience_bar = SpriteSheet::new(
         (41, 6),
         Some("Experience Bar"),
-        &mut texture_map,
-        &texture_creator,
+        &mut global_state,
         "Assets/Proprietary/UI/Detailed_option/Experience_bar.png",
     );
 
-    let mut player = Player::new(
+    let _player = player::new(
+        &mut global_state,
         0,
         0,
-        &mut texture_map,
-        &texture_creator,
         "Assets/Proprietary/Animation/Main_heroes/Warrior",
         vec![
             vec![(72 / 4, 28), (72 / 4, 28), (68 / 4, 27), (68 / 4, 27)],
@@ -90,30 +98,30 @@ fn main() {
     let mut now: std::time::Instant;
 
     'running: loop {
-        canvas.set_draw_color(Color::RGB(105, 6, 255));
-        canvas.clear();
+        global_state.canvas.set_draw_color(Color::RGB(105, 6, 255));
+        global_state.canvas.clear();
 
         then = std::time::Instant::now();
 
         // Load the tilemap file and draw it onto the canvas
-        tile_sheet.draw_map(&texture_map, &mut canvas, "Assets/map.tmx");
+        tile_sheet.draw_map(&mut global_state, "Assets/map.tmx");
 
         // Render the player's current animation frame
-        player.render_frame(&mut canvas, &texture_map);
+        // player.render_frame(&mut canvas, &texture_map);
 
-        warrior_ui.draw_to(0, 0, 0, &mut texture_map, &mut canvas);
-        health_bar.draw_to(0, 49, 5, &mut texture_map, &mut canvas);
-        magic_bar.draw_to(0, 61, 20, &mut texture_map, &mut canvas);
-        experience_bar.draw_to(0, 49, 35, &mut texture_map, &mut canvas);
+        warrior_ui.draw_to(0, 0, 0, &mut global_state);
+        health_bar.draw_to(0, 49, 5, &mut global_state);
+        magic_bar.draw_to(0, 61, 20, &mut global_state);
+        experience_bar.draw_to(0, 49, 35, &mut global_state);
 
         let mut event_pump = sdl_ctx.event_pump().unwrap();
 
-        match player.control(&mut event_pump) {
-            // Hand off event handling to the player
-            // until they're done moving
-            Ok(_) => (),
-            Err(e) => println!("{}", e),
-        }
+        // match player.control(&mut event_pump) {
+        //     // Hand off event handling to the player
+        //     // until they're done moving
+        //     Ok(_) => (),
+        //     Err(e) => println!("{}", e),
+        // }
 
         for event in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -130,7 +138,7 @@ fn main() {
             }
         }
 
-        canvas.present();
+        global_state.canvas.present();
         now = std::time::Instant::now();
         if now - then < std::time::Duration::new(0, 1_000_000_000 / 20) {
             std::thread::sleep(std::time::Duration::new(0, 1_000_000_000 / 20) - (now - then));

@@ -1,26 +1,22 @@
+use crate::models::components::Direction;
+use crate::util::GlobalState;
 use sdl2::image::*;
-use sdl2::render::*;
-use std::collections::HashMap;
-
-use crate::models::Direction;
 
 pub static WINDOW_WIDTH: u32 = 1008;
 pub static WINDOW_HEIGHT: u32 = 1008;
 
-pub struct DirectionalAnimation {
-    sprites: Vec<SpriteSheet>,
-}
+#[derive(Clone, Debug, PartialEq)]
+pub struct DirectionalAnimation(Vec<SpriteSheet>);
 
 impl DirectionalAnimation {
     pub fn get_sprite(&mut self, direction: Direction) -> &mut SpriteSheet {
-        &mut self.sprites[direction as usize]
+        &mut self.0[direction as usize]
     }
-    pub fn new<'a, T>(
+    pub fn new<'a>(
         sprite_dir: &str,
         wh_list: Vec<(u32, u32)>,
         sprite_name: &str,
-        texture_creator: &'a TextureCreator<T>,
-        texture_map: &mut HashMap<String, Texture<'a>>,
+        global_state: &'a mut GlobalState<'a>,
     ) -> Result<Self, std::io::Error> {
         let mut up: Option<SpriteSheet> = None;
         let mut down: Option<SpriteSheet> = None;
@@ -46,8 +42,7 @@ impl DirectionalAnimation {
                         up = Some(SpriteSheet::new(
                             wh_list[Direction::Up as usize],
                             None,
-                            texture_map,
-                            texture_creator,
+                            global_state,
                             &sprite_path,
                         ))
                     }
@@ -55,8 +50,7 @@ impl DirectionalAnimation {
                         down = Some(SpriteSheet::new(
                             wh_list[Direction::Down as usize],
                             None,
-                            texture_map,
-                            texture_creator,
+                            global_state,
                             &sprite_path,
                         ))
                     }
@@ -64,8 +58,7 @@ impl DirectionalAnimation {
                         left = Some(SpriteSheet::new(
                             wh_list[Direction::Left as usize],
                             None,
-                            texture_map,
-                            texture_creator,
+                            global_state,
                             &sprite_path,
                         ))
                     }
@@ -73,8 +66,7 @@ impl DirectionalAnimation {
                         right = Some(SpriteSheet::new(
                             wh_list[Direction::Right as usize],
                             None,
-                            texture_map,
-                            texture_creator,
+                            global_state,
                             &sprite_path,
                         ))
                     }
@@ -89,7 +81,7 @@ impl DirectionalAnimation {
         match (up, down, left, right) {
             (Some(up), Some(down), Some(left), Some(right)) => {
                 let sprites = vec![up, down, left, right];
-                Ok(DirectionalAnimation { sprites })
+                Ok(DirectionalAnimation(sprites))
             }
             _ => Err(Error::new(
                 ErrorKind::Other,
@@ -102,6 +94,7 @@ impl DirectionalAnimation {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct SpriteSheet {
     sprite_width: u32,
     sprite_height: u32,
@@ -111,14 +104,13 @@ pub struct SpriteSheet {
 }
 
 impl SpriteSheet {
-    pub fn new<'a, T>(
+    pub fn new<'a>(
         sprite_wh: (u32, u32),
         texture_id: Option<&str>,
-        texture_map: &mut HashMap<String, Texture<'a>>,
-        texture_creator: &'a TextureCreator<T>,
+        global_state: &'a mut GlobalState<'a>,
         path: &str,
     ) -> Self {
-        let texture = texture_creator.load_texture(path).unwrap();
+        let texture = global_state.texture_creator.load_texture(path).unwrap();
         let (max_width, max_height) = {
             let tq = texture.query();
             (tq.width, tq.height)
@@ -132,7 +124,7 @@ impl SpriteSheet {
         });
 
         let texture_id = texture_id_key.clone();
-        texture_map.insert(texture_id_key, texture);
+        global_state.texture_map.insert(texture_id_key, texture);
 
         let (h_size, v_size) = ((max_width / sprite_width), (max_height / sprite_height));
         let mut sprites: Vec<sdl2::rect::Rect> = Vec::with_capacity((h_size * v_size) as usize);
@@ -158,44 +150,25 @@ impl SpriteSheet {
         }
     }
 
-    pub fn draw_to(
-        &self,
-        i: usize,
-        x: i32,
-        y: i32,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    ) {
-        let texture = texture_map.get(&self.texture_id).unwrap();
+    pub fn draw_to(&self, i: usize, x: i32, y: i32, global_state: &mut GlobalState) {
+        let texture = global_state.texture_map.get(&self.texture_id).unwrap();
         let sprite = self.sprites[i];
         let dst = sdl2::rect::Rect::new(x, y, self.sprite_width, self.sprite_height);
-        canvas.copy(&texture, sprite, dst).unwrap();
+        global_state.canvas.copy(&texture, sprite, dst).unwrap();
     }
 
-    pub fn draw_animated(
-        &mut self,
-        x: i32,
-        y: i32,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    ) {
+    pub fn draw_animated(&mut self, x: i32, y: i32, global_state: &mut GlobalState) {
         self.draw_to(
             self.animation_counter as usize % self.sprites.len(),
             x,
             y,
-            texture_map,
-            canvas,
+            global_state,
         );
 
         self.animation_counter += 1;
     }
 
-    pub fn draw_map(
-        &self,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-        tilemap_path: &str,
-    ) {
+    pub fn draw_map(&self, global_state: &mut GlobalState, tilemap_path: &str) {
         let tilemap = tiled::parse_file(std::path::Path::new(tilemap_path)).unwrap();
         let layer_data = match &tilemap.layers[0].tiles {
             tiled::LayerData::Finite(tiles) => tiles,
@@ -213,8 +186,7 @@ impl SpriteSheet {
                     (gid - tileset.first_gid) as usize,
                     (i * 16) as i32,
                     (j * 16) as i32,
-                    texture_map,
-                    canvas,
+                    global_state,
                 );
             }
         }
