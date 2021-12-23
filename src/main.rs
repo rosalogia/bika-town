@@ -32,11 +32,8 @@ fn main() {
     let mut texture_map: HashMap<String, Texture> = HashMap::new();
     let mut last_id = 0;
     let mut resources = Resources::default();
-    let mut render_queue: Vec<RenderRequest> = vec![];
-    resources.insert(render_queue);
+    resources.insert::<Vec<RenderRequest>>(vec![]);
     resources.insert::<Option<components::Input>>(None);
-
-    // resources.insert(global_state);
 
     let tile_sheet = SpriteSheet::new(
         (16, 16),
@@ -110,7 +107,7 @@ fn main() {
     let mut now: std::time::Instant;
 
     'running: loop {
-        canvas.set_draw_color(Color::RGB(105, 6, 255));
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
 
         then = std::time::Instant::now();
@@ -118,43 +115,10 @@ fn main() {
         // Load the tilemap file and draw it onto the canvas
         tile_sheet.draw_map(&mut canvas, &texture_map, "Assets/map.tmx");
 
-        // Render the player's current animation frame
-        // player.render_frame(&mut canvas, &texture_map);
-
+        // Input handling
+        // Handle quit events, then pass event pump
+        // to an input handler function
         let mut event_pump = sdl_ctx.event_pump().unwrap();
-
-        // match player.control(&mut event_pump) {
-        //     // Hand off event handling to the player
-        //     // until they're done moving
-        //     Ok(_) => (),
-        //     Err(e) => println!("{}", e),
-        // }
-
-        use models::components::*;
-        use sdl2::keyboard::Scancode;
-
-        let kb_state = event_pump.keyboard_state();
-
-        if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
-            resources.insert(Some(Input::Move(Direction::Up)));
-        }
-
-        if kb_state.is_scancode_pressed(Scancode::Down) || kb_state.is_scancode_pressed(Scancode::S)
-        {
-            resources.insert(Some(Input::Move(Direction::Down)));
-        }
-
-        if kb_state.is_scancode_pressed(Scancode::Left) || kb_state.is_scancode_pressed(Scancode::A)
-        {
-            resources.insert(Some(Input::Move(Direction::Left)));
-        }
-
-        if kb_state.is_scancode_pressed(Scancode::Right)
-            || kb_state.is_scancode_pressed(Scancode::D)
-        {
-            resources.insert(Some(Input::Move(Direction::Right)));
-        }
-
         for event in event_pump.poll_iter() {
             use sdl2::event::Event;
 
@@ -169,10 +133,15 @@ fn main() {
                 _ => {}
             }
         }
+        handle_input(&mut event_pump, &mut resources);
 
+        // Schedule runs of all the systems, then
+        // reset the input.
         schedule.execute(&mut world, &mut resources);
-        resources.insert::<Option<Input>>(None);
+        resources.insert::<Option<components::Input>>(None);
 
+        // Retrieve and dereference the render queue
+        // then render everything within it
         use core::ops::DerefMut;
         let mut render_queue_reference = resources.get_mut::<Vec<RenderRequest>>().unwrap();
         let mut render_queue = render_queue_reference.deref_mut();
@@ -184,15 +153,46 @@ fn main() {
             &mut directional_sprite_map,
         );
 
+        // Draw UI elements after drawing the character
         warrior_ui.draw_to(0, 0, 0, &mut canvas, &texture_map);
         health_bar.draw_to(0, 49, 5, &mut canvas, &texture_map);
         magic_bar.draw_to(0, 61, 20, &mut canvas, &texture_map);
         experience_bar.draw_to(0, 49, 35, &mut canvas, &texture_map);
 
         canvas.present();
+
         now = std::time::Instant::now();
         if now - then < std::time::Duration::new(0, 1_000_000_000 / 20) {
             std::thread::sleep(std::time::Duration::new(0, 1_000_000_000 / 20) - (now - then));
+        }
+    }
+}
+
+fn handle_input(event_pump: &mut sdl2::EventPump, resources: &mut Resources) {
+    use models::components::*;
+    use sdl2::keyboard::Scancode;
+
+    let kb_state = event_pump.keyboard_state();
+
+    if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
+        resources.insert(Some(Input::Move(Direction::Up)));
+    }
+
+    if kb_state.is_scancode_pressed(Scancode::Down) || kb_state.is_scancode_pressed(Scancode::S) {
+        resources.insert(Some(Input::Move(Direction::Down)));
+    }
+
+    if kb_state.is_scancode_pressed(Scancode::Left) || kb_state.is_scancode_pressed(Scancode::A) {
+        resources.insert(Some(Input::Move(Direction::Left)));
+    }
+
+    if kb_state.is_scancode_pressed(Scancode::Right) || kb_state.is_scancode_pressed(Scancode::D) {
+        resources.insert(Some(Input::Move(Direction::Right)));
+    }
+
+    for event in event_pump.poll_iter() {
+        match event {
+            _ => {}
         }
     }
 }
