@@ -1,7 +1,5 @@
 use super::components::*;
-use crate::rendering::{
-    DirectionalAnimation, RenderRequest, RENDER_QUEUE, WINDOW_HEIGHT, WINDOW_WIDTH,
-};
+use crate::rendering::{DirectionalAnimation, RenderRequest, WINDOW_HEIGHT, WINDOW_WIDTH};
 use legion::*;
 use sdl2::render::{Texture, TextureCreator};
 use std::collections::HashMap;
@@ -93,7 +91,12 @@ pub mod systems {
     use super::*;
 
     #[system(for_each)]
-    pub fn animate_player(position: &Position, state: &PlayerState, id: &Id) {
+    pub fn animate_player(
+        position: &Position,
+        state: &PlayerState,
+        id: &Id,
+        #[resource] resource_queue: &mut Vec<RenderRequest>,
+    ) {
         let Id(id) = *id;
         let position = *position;
         let state = *state;
@@ -105,7 +108,7 @@ pub mod systems {
             state,
         };
 
-        RENDER_QUEUE.lock().unwrap().push(render_request);
+        resource_queue.push(render_request);
     }
 
     #[system(for_each)]

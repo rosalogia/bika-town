@@ -32,6 +32,8 @@ fn main() {
     let mut texture_map: HashMap<String, Texture> = HashMap::new();
     let mut last_id = 0;
     let mut resources = Resources::default();
+    let mut render_queue: Vec<RenderRequest> = vec![];
+    resources.insert(render_queue);
     resources.insert::<Option<components::Input>>(None);
 
     // resources.insert(global_state);
@@ -171,13 +173,21 @@ fn main() {
         schedule.execute(&mut world, &mut resources);
         resources.insert::<Option<Input>>(None);
 
-        render_queue_items(&mut canvas, &texture_map, &mut directional_sprite_map);
-        
+        use core::ops::DerefMut;
+        let mut render_queue_reference = resources.get_mut::<Vec<RenderRequest>>().unwrap();
+        let mut render_queue = render_queue_reference.deref_mut();
+
+        render_queue_items(
+            &mut canvas,
+            &texture_map,
+            &mut render_queue,
+            &mut directional_sprite_map,
+        );
+
         warrior_ui.draw_to(0, 0, 0, &mut canvas, &texture_map);
         health_bar.draw_to(0, 49, 5, &mut canvas, &texture_map);
         magic_bar.draw_to(0, 61, 20, &mut canvas, &texture_map);
         experience_bar.draw_to(0, 49, 35, &mut canvas, &texture_map);
-
 
         canvas.present();
         now = std::time::Instant::now();

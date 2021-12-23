@@ -1,9 +1,7 @@
 use crate::models::components::{Direction, PlayerState, Position};
-use lazy_static::lazy_static;
 use sdl2::image::*;
 use sdl2::render::*;
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RenderRequest {
@@ -12,25 +10,20 @@ pub struct RenderRequest {
     pub state: PlayerState,
 }
 
-lazy_static! {
-    pub static ref RENDER_QUEUE: Mutex<Vec<RenderRequest>> = Mutex::new(vec![]);
-}
-
 pub static WINDOW_WIDTH: u32 = 1008;
 pub static WINDOW_HEIGHT: u32 = 1008;
 
 pub fn render_queue_items(
     canvas: &mut WindowCanvas,
     texture_map: &HashMap<String, Texture>,
+    render_queue: &mut Vec<RenderRequest>,
     directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
 ) {
-    let mut queue = RENDER_QUEUE.lock().unwrap();
-
     while let Some(RenderRequest {
         id,
         position,
         state,
-    }) = queue.pop()
+    }) = render_queue.pop()
     {
         let animation = &mut directional_sprite_map.get_mut(&id).unwrap()[state as usize];
         animation.get_sprite(position.direction).draw_animated(
