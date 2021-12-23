@@ -3,15 +3,17 @@ use sdl2::image::*;
 use sdl2::render::*;
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RenderRequest {
-    pub id: u32,
-    pub position: Position,
-    pub state: PlayerState,
-}
-
 pub static WINDOW_WIDTH: u32 = 1008;
 pub static WINDOW_HEIGHT: u32 = 1008;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RenderRequest {
+    Player {
+        id: u32,
+        position: Position,
+        state: PlayerState,
+    },
+}
 
 pub fn render_queue_items(
     canvas: &mut WindowCanvas,
@@ -19,19 +21,22 @@ pub fn render_queue_items(
     render_queue: &mut Vec<RenderRequest>,
     directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
 ) {
-    while let Some(RenderRequest {
-        id,
-        position,
-        state,
-    }) = render_queue.pop()
-    {
-        let animation = &mut directional_sprite_map.get_mut(&id).unwrap()[state as usize];
-        animation.get_sprite(position.direction).draw_animated(
-            position.x,
-            position.y,
-            canvas,
-            texture_map,
-        );
+    while let Some(render_request) = render_queue.pop() {
+        match render_request {
+            RenderRequest::Player {
+                id,
+                position,
+                state,
+            } => {
+                let animation = &mut directional_sprite_map.get_mut(&id).unwrap()[state as usize];
+                animation.get_sprite(position.direction).draw_animated(
+                    position.x,
+                    position.y,
+                    canvas,
+                    texture_map,
+                );
+            }
+        }
     }
 }
 
@@ -42,6 +47,7 @@ impl DirectionalAnimation {
     pub fn get_sprite(&mut self, direction: Direction) -> &mut SpriteSheet {
         &mut self.0[direction as usize]
     }
+
     pub fn new<'a, T>(
         sprite_dir: &str,
         wh_list: Vec<(u32, u32)>,

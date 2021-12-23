@@ -102,7 +102,7 @@ pub mod systems {
         let state = *state;
         println!("Rendering player in state {:?}", state);
 
-        let render_request = RenderRequest {
+        let render_request = RenderRequest::Player {
             id,
             position,
             state,
