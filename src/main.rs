@@ -30,53 +30,58 @@ fn main() {
     let texture_creator = canvas.texture_creator();
     let mut directional_sprite_map: HashMap<u32, Vec<DirectionalAnimation>> = HashMap::new();
     let mut texture_map: HashMap<String, Texture> = HashMap::new();
+    let mut last_id = 0;
+    let mut resources = Resources::default();
+    resources.insert::<Option<components::Input>>(None);
 
-    let mut global_state = util::GlobalState {
-        last_id: 0,
-        world,
-        canvas,
-        texture_creator,
-        texture_map,
-        directional_sprite_map,
-    };
+    // resources.insert(global_state);
 
     let tile_sheet = SpriteSheet::new(
         (16, 16),
         Some("tiles"),
-        &mut global_state,
+        &texture_creator,
+        &mut texture_map,
         "Assets/Proprietary/Tiles/Tiles.png",
     );
 
     let warrior_ui = SpriteSheet::new(
         (103, 46),
         Some("UI"),
-        &mut global_state,
+        &texture_creator,
+        &mut texture_map,
         "Assets/Proprietary/UI/Detailed_option/Detailed_option_Warrior.png",
     );
 
     let health_bar = SpriteSheet::new(
         (41, 6),
         Some("Health Bar"),
-        &mut global_state,
+        &texture_creator,
+        &mut texture_map,
         "Assets/Proprietary/UI/Detailed_option/Health_bar.png",
     );
 
     let magic_bar = SpriteSheet::new(
         (40, 6),
         Some("Magic Bar"),
-        &mut global_state,
+        &texture_creator,
+        &mut texture_map,
         "Assets/Proprietary/UI/Detailed_option/Magic_bar.png",
     );
 
     let experience_bar = SpriteSheet::new(
         (41, 6),
         Some("Experience Bar"),
-        &mut global_state,
+        &texture_creator,
+        &mut texture_map,
         "Assets/Proprietary/UI/Detailed_option/Experience_bar.png",
     );
 
     let _player = player::new(
-        &mut global_state,
+        &mut world,
+        &texture_creator,
+        &mut texture_map,
+        &mut directional_sprite_map,
+        &mut last_id,
         0,
         0,
         "Assets/Proprietary/Animation/Main_heroes/Warrior",
@@ -94,25 +99,25 @@ fn main() {
         ],
     );
 
+    let mut schedule = Schedule::builder()
+        .add_system(player::systems::move_player_character_system())
+        .add_system(player::systems::animate_player_system())
+        .build();
+
     let mut then: std::time::Instant;
     let mut now: std::time::Instant;
 
     'running: loop {
-        global_state.canvas.set_draw_color(Color::RGB(105, 6, 255));
-        global_state.canvas.clear();
+        canvas.set_draw_color(Color::RGB(105, 6, 255));
+        canvas.clear();
 
         then = std::time::Instant::now();
 
         // Load the tilemap file and draw it onto the canvas
-        tile_sheet.draw_map(&mut global_state, "Assets/map.tmx");
+        tile_sheet.draw_map(&mut canvas, &texture_map, "Assets/map.tmx");
 
         // Render the player's current animation frame
         // player.render_frame(&mut canvas, &texture_map);
-
-        warrior_ui.draw_to(0, 0, 0, &mut global_state);
-        health_bar.draw_to(0, 49, 5, &mut global_state);
-        magic_bar.draw_to(0, 61, 20, &mut global_state);
-        experience_bar.draw_to(0, 49, 35, &mut global_state);
 
         let mut event_pump = sdl_ctx.event_pump().unwrap();
 
@@ -122,6 +127,31 @@ fn main() {
         //     Ok(_) => (),
         //     Err(e) => println!("{}", e),
         // }
+
+        use models::components::*;
+        use sdl2::keyboard::Scancode;
+
+        let kb_state = event_pump.keyboard_state();
+
+        if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
+            resources.insert(Some(Input::Move(Direction::Up)));
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Down) || kb_state.is_scancode_pressed(Scancode::S)
+        {
+            resources.insert(Some(Input::Move(Direction::Down)));
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Left) || kb_state.is_scancode_pressed(Scancode::A)
+        {
+            resources.insert(Some(Input::Move(Direction::Left)));
+        }
+
+        if kb_state.is_scancode_pressed(Scancode::Right)
+            || kb_state.is_scancode_pressed(Scancode::D)
+        {
+            resources.insert(Some(Input::Move(Direction::Right)));
+        }
 
         for event in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -138,7 +168,18 @@ fn main() {
             }
         }
 
-        global_state.canvas.present();
+        schedule.execute(&mut world, &mut resources);
+        resources.insert::<Option<Input>>(None);
+
+        render_queue_items(&mut canvas, &texture_map, &mut directional_sprite_map);
+        
+        warrior_ui.draw_to(0, 0, 0, &mut canvas, &texture_map);
+        health_bar.draw_to(0, 49, 5, &mut canvas, &texture_map);
+        magic_bar.draw_to(0, 61, 20, &mut canvas, &texture_map);
+        experience_bar.draw_to(0, 49, 35, &mut canvas, &texture_map);
+
+
+        canvas.present();
         now = std::time::Instant::now();
         if now - then < std::time::Duration::new(0, 1_000_000_000 / 20) {
             std::thread::sleep(std::time::Duration::new(0, 1_000_000_000 / 20) - (now - then));

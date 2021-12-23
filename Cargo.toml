@@ -9,6 +9,7 @@ edition = "2018"
 legion = "*"
 tiled = "*"
 ron = "*"
+lazy_static = "*"
 serde = { version = "*", features = ["derive"] }
 [dependencies.sdl2]
 version = "0.34"

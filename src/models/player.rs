@@ -1,11 +1,17 @@
 use super::components::*;
-use crate::rendering::DirectionalAnimation;
-use crate::rendering::{WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::util::GlobalState;
+use crate::rendering::{
+    DirectionalAnimation, RenderRequest, RENDER_QUEUE, WINDOW_HEIGHT, WINDOW_WIDTH,
+};
 use legion::*;
+use sdl2::render::{Texture, TextureCreator};
+use std::collections::HashMap;
 
-pub fn new<'a>(
-    global_state: &'a mut GlobalState<'a>,
+pub fn new<'a, T>(
+    world: &mut World,
+    texture_creator: &'a TextureCreator<T>,
+    texture_map: &mut HashMap<String, Texture<'a>>,
+    directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
+    last_id: &mut u32,
     x: i32,
     y: i32,
     sprite_dir: &str,
@@ -21,18 +27,25 @@ pub fn new<'a>(
         direction,
     };
 
-    let id = global_state.last_id + 1;
-    global_state.last_id += 1;
-    let sprites = generate_sprites(global_state.last_id, global_state, sprite_dir, wh_list);
+    let id = *last_id + 1;
+    *last_id += 1;
+    let sprites = generate_sprites(
+        id,
+        texture_creator,
+        texture_map,
+        directional_sprite_map,
+        sprite_dir,
+        wh_list,
+    );
 
-    global_state
-        .world
-        .push((Id(id), IsPlayerCharacter, position, state, sprites))
+    world.push((Id(id), IsPlayerCharacter, position, state, sprites))
 }
 
-pub fn generate_sprites<'a>(
+pub fn generate_sprites<'a, T>(
     id: u32,
-    global_state: &'a mut GlobalState<'a>,
+    texture_creator: &'a TextureCreator<T>,
+    texture_map: &mut HashMap<String, Texture<'a>>,
+    directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
     sprite_dir: &str,
     wh_list: Vec<Vec<(u32, u32)>>,
 ) {
@@ -41,10 +54,12 @@ pub fn generate_sprites<'a>(
     let mut sprites = Vec::with_capacity(5);
 
     for (name, wh) in names.iter().zip(wh_list.into_iter()) {
-        sprites.push(DirectionalAnimation::new(sprite_dir, wh, name, global_state).unwrap());
+        sprites.push(
+            DirectionalAnimation::new(sprite_dir, wh, name, texture_creator, texture_map).unwrap(),
+        );
     }
 
-    global_state.directional_sprite_map.insert(id, sprites);
+    directional_sprite_map.insert(id, sprites);
 }
 
 fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) -> Result<(), String> {
@@ -76,33 +91,54 @@ fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) -> 
 
 pub mod systems {
     use super::*;
+
+    #[system(for_each)]
+    pub fn animate_player(position: &Position, state: &PlayerState, id: &Id) {
+        let Id(id) = *id;
+        let position = *position;
+        let state = *state;
+        println!("Rendering player in state {:?}", state);
+
+        let render_request = RenderRequest {
+            id,
+            position,
+            state,
+        };
+
+        RENDER_QUEUE.lock().unwrap().push(render_request);
+    }
+
     #[system(for_each)]
     pub fn move_player_character(
         _: &IsPlayerCharacter,
         position: &mut Position,
         state: &mut PlayerState,
-        #[resource] input: &Input,
+        #[resource] input: &Option<Input>,
     ) {
         let move_by = position.velocity * 4;
 
-        let Input::Move(direction) = input;
+        if let Some(Input::Move(direction)) = input {
+            match direction {
+                Direction::Up => {
+                    move_to(position, state, position.x, position.y - move_by).unwrap();
+                }
+                Direction::Down => {
+                    move_to(position, state, position.x, position.y + move_by).unwrap();
+                }
+                Direction::Left => {
+                    move_to(position, state, position.x - move_by, position.y).unwrap();
+                }
+                Direction::Right => {
+                    move_to(position, state, position.x + move_by, position.y).unwrap();
+                }
+            }
 
-        match direction {
-            Direction::Up => {
-                move_to(position, state, position.x, position.y - move_by).unwrap();
-            }
-            Direction::Down => {
-                move_to(position, state, position.x, position.y + move_by).unwrap();
-            }
-            Direction::Left => {
-                move_to(position, state, position.x - move_by, position.y).unwrap();
-            }
-            Direction::Right => {
-                move_to(position, state, position.x + move_by, position.y).unwrap();
-            }
+            position.direction = *direction;
+            position.velocity = 1;
+            // *state = PlayerState::Idle;
+        } else {
+            *state = PlayerState::Idle;
         }
-
-        position.direction = *direction;
     }
 
     #[system(for_each)]

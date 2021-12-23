@@ -8,7 +8,7 @@ pub struct GlobalState<'a> {
     pub last_id: u32,
     pub world: World,
     pub canvas: WindowCanvas,
-    pub texture_creator: TextureCreator<sdl2::video::WindowContext>,
+    pub texture_creator: &'a TextureCreator<sdl2::video::WindowContext>,
     pub texture_map: HashMap<String, Texture<'a>>,
     pub directional_sprite_map: HashMap<u32, Vec<DirectionalAnimation>>,
 }
