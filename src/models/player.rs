@@ -15,18 +15,16 @@ pub fn new<'a, T>(
     sprite_dir: &str,
     wh_list: Vec<Vec<(u32, u32)>>,
 ) -> Entity {
-    let velocity = 1;
-    let direction = Direction::Down;
-    let state = PlayerState::Idle;
     let position = Position {
         x,
         y,
-        velocity,
-        direction,
+        velocity: 1,
+        direction: Direction::Down,
     };
+    let state = PlayerState::Idle;
 
-    let id = *last_id + 1;
     *last_id += 1;
+    let id = *last_id;
     let sprites = generate_sprites(
         id,
         texture_creator,
@@ -60,13 +58,13 @@ pub fn generate_sprites<'a, T>(
     directional_sprite_map.insert(id, sprites);
 }
 
-fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) -> Result<(), String> {
+fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) {
     if x < 0
         || x >= (WINDOW_WIDTH / 16 * 63) as i32
         || y < 0
         || y >= (WINDOW_HEIGHT / 16 * 63) as i32
     {
-        return Err("Tried to move off the board".to_string());
+        return println!("Tried to move off the board");
     }
 
     *state = PlayerState::Moving;
@@ -75,16 +73,34 @@ fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) -> 
     let y_movement = (position.y as i32 - y as i32).abs();
 
     if x_movement != 0 && y_movement != 0 {
-        return Err(format!(
+        return println!(
             "Invalid move attempted from ({}, {}) to ({}, {})",
             position.x, position.y, x, y
-        ));
+        );
     }
 
     position.x = x;
     position.y = y;
+}
 
-    Ok(())
+fn handle_movement_input(direction: &Direction, position: &mut Position, state: &mut PlayerState) {
+    let move_by = position.velocity * 4;
+
+    match direction {
+        Direction::Up => {
+            move_to(position, state, position.x, position.y - move_by);
+        }
+        Direction::Down => {
+            move_to(position, state, position.x, position.y + move_by);
+        }
+        Direction::Left => {
+            move_to(position, state, position.x - move_by, position.y);
+        }
+        Direction::Right => {
+            move_to(position, state, position.x + move_by, position.y);
+        }
+    }
+    position.direction = *direction;
 }
 
 pub mod systems {
@@ -112,45 +128,30 @@ pub mod systems {
     }
 
     #[system(for_each)]
-    pub fn move_player_character(
+    pub fn player_input(
         _: &IsPlayerCharacter,
         position: &mut Position,
         state: &mut PlayerState,
-        #[resource] input: &Option<Input>,
+        #[resource] input: &mut Vec<Input>,
     ) {
-        let move_by = position.velocity * 4;
-
-        if let Some(Input::Move(direction)) = input {
-            match direction {
-                Direction::Up => {
-                    move_to(position, state, position.x, position.y - move_by).unwrap();
-                }
-                Direction::Down => {
-                    move_to(position, state, position.x, position.y + move_by).unwrap();
-                }
-                Direction::Left => {
-                    move_to(position, state, position.x - move_by, position.y).unwrap();
-                }
-                Direction::Right => {
-                    move_to(position, state, position.x + move_by, position.y).unwrap();
-                }
-            }
-
-            position.direction = *direction;
-            position.velocity = 1;
-            // *state = PlayerState::Idle;
-        } else {
+        if input.len() == 0 {
             *state = PlayerState::Idle;
-        }
-    }
-
-    #[system(for_each)]
-    pub fn player_run(_: &IsPlayerCharacter, position: &mut Position, #[resource] input: &Input) {
-        match input {
-            Input::Run => {
-                position.velocity = 2;
+            position.velocity = 1;
+        } else {
+            while let Some(input) = input.pop() {
+                match input {
+                    Input::Move(direction) => {
+                        handle_movement_input(&direction, position, state);
+                    }
+                    Input::Run => {
+                        position.velocity = 2;
+                    }
+                    Input::Attack => {
+                        *state = PlayerState::Attack;
+                    }
+                    _ => {}
+                }
             }
-            _ => {}
         }
     }
 }
