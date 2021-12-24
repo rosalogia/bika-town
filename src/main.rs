@@ -33,7 +33,7 @@ fn main() {
     let mut last_id = 0;
     let mut resources = Resources::default();
     resources.insert::<Vec<RenderRequest>>(vec![]);
-    resources.insert::<Option<components::Input>>(None);
+    resources.insert::<Vec<components::Input>>(vec![]);
 
     let tile_sheet = SpriteSheet::new(
         (16, 16),
@@ -99,7 +99,7 @@ fn main() {
     );
 
     let mut schedule = Schedule::builder()
-        .add_system(player::systems::move_player_character_system())
+        .add_system(player::systems::player_input_system())
         .add_system(player::systems::animate_player_system())
         .build();
 
@@ -133,12 +133,13 @@ fn main() {
                 _ => {}
             }
         }
-        handle_input(&mut event_pump, &mut resources);
 
         // Schedule runs of all the systems, then
         // reset the input.
         schedule.execute(&mut world, &mut resources);
-        resources.insert::<Option<components::Input>>(None);
+        let mut input_vector_ref = resources.get_mut::<Vec<components::Input>>().unwrap();
+        let mut input_vector = input_vector_ref.deref_mut();
+        handle_input(&mut event_pump, &mut input_vector);
 
         // Retrieve and dereference the render queue
         // then render everything within it
@@ -168,26 +169,32 @@ fn main() {
     }
 }
 
-fn handle_input(event_pump: &mut sdl2::EventPump, resources: &mut Resources) {
+fn handle_input(event_pump: &mut sdl2::EventPump, input_vector: &mut Vec<components::Input>) {
     use models::components::*;
     use sdl2::keyboard::Scancode;
 
     let kb_state = event_pump.keyboard_state();
 
     if kb_state.is_scancode_pressed(Scancode::Up) || kb_state.is_scancode_pressed(Scancode::W) {
-        resources.insert(Some(Input::Move(Direction::Up)));
+        input_vector.push(Input::Move(Direction::Up));
+    } else if kb_state.is_scancode_pressed(Scancode::Down)
+        || kb_state.is_scancode_pressed(Scancode::S)
+    {
+        input_vector.push(Input::Move(Direction::Down));
+    } else if kb_state.is_scancode_pressed(Scancode::Left)
+        || kb_state.is_scancode_pressed(Scancode::A)
+    {
+        input_vector.push(Input::Move(Direction::Left));
+    } else if kb_state.is_scancode_pressed(Scancode::Right)
+        || kb_state.is_scancode_pressed(Scancode::D)
+    {
+        input_vector.push(Input::Move(Direction::Right));
+    } else if kb_state.is_scancode_pressed(Scancode::Z) {
+        input_vector.push(Input::Attack);
     }
 
-    if kb_state.is_scancode_pressed(Scancode::Down) || kb_state.is_scancode_pressed(Scancode::S) {
-        resources.insert(Some(Input::Move(Direction::Down)));
-    }
-
-    if kb_state.is_scancode_pressed(Scancode::Left) || kb_state.is_scancode_pressed(Scancode::A) {
-        resources.insert(Some(Input::Move(Direction::Left)));
-    }
-
-    if kb_state.is_scancode_pressed(Scancode::Right) || kb_state.is_scancode_pressed(Scancode::D) {
-        resources.insert(Some(Input::Move(Direction::Right)));
+    if kb_state.is_scancode_pressed(Scancode::Space) {
+        input_vector.push(Input::Run);
     }
 
     for event in event_pump.poll_iter() {
