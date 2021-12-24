@@ -1,4 +1,4 @@
-use crate::models::components::{Direction, PlayerState, Position};
+use crate::models::components::*;
 use sdl2::image::*;
 use sdl2::render::*;
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ pub enum RenderRequest {
         position: Position,
         state: PlayerState,
     },
+    PlayerUi(PlayerStats),
 }
 
 pub fn render_queue_items(
@@ -20,6 +21,7 @@ pub fn render_queue_items(
     texture_map: &HashMap<String, Texture>,
     render_queue: &mut Vec<RenderRequest>,
     directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
+    player_ui_elements: &Vec<SpriteSheet>,
 ) {
     while let Some(render_request) = render_queue.pop() {
         match render_request {
@@ -35,6 +37,17 @@ pub fn render_queue_items(
                     canvas,
                     texture_map,
                 );
+            }
+            RenderRequest::PlayerUi(stats) => {
+                let elements: Vec<Box<&dyn RenderStat>> = vec![
+                    Box::new(&stats.health),
+                    Box::new(&stats.mana),
+                    Box::new(&stats.experience),
+                ];
+
+                for element in elements.iter() {
+                    element.render(player_ui_elements, texture_map, canvas);
+                }
             }
         }
     }
@@ -203,6 +216,24 @@ impl SpriteSheet {
         let texture = texture_map.get(&self.texture_id).unwrap();
         let sprite = self.sprites[i];
         let dst = sdl2::rect::Rect::new(x, y, self.sprite_width, self.sprite_height);
+        canvas.copy(&texture, sprite, dst).unwrap();
+    }
+
+    pub fn draw_portion_of(
+        &self,
+        i: usize,
+        x: i32,
+        y: i32,
+        percent_width: f32,
+        percent_height: f32,
+        canvas: &mut WindowCanvas,
+        texture_map: &HashMap<String, Texture>,
+    ) {
+        let texture = texture_map.get(&self.texture_id).unwrap();
+        let sprite = self.sprites[i];
+        let width = (percent_width * (self.sprite_width as f32)) as u32;
+        let height = (percent_height * (self.sprite_height as f32)) as u32;
+        let dst = sdl2::rect::Rect::new(x, y, width, height);
         canvas.copy(&texture, sprite, dst).unwrap();
     }
 
