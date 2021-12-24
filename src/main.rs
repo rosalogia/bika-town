@@ -75,6 +75,8 @@ fn main() {
         "Assets/Proprietary/UI/Detailed_option/Experience_bar.png",
     );
 
+    let player_ui_elements = vec![health_bar, magic_bar, experience_bar];
+
     let _player = player::new(
         &mut world,
         &texture_creator,
@@ -101,6 +103,7 @@ fn main() {
     let mut schedule = Schedule::builder()
         .add_system(player::systems::player_input_system())
         .add_system(player::systems::animate_player_system())
+        .add_system(player::systems::draw_player_ui_system())
         .build();
 
     let mut then: std::time::Instant;
@@ -141,6 +144,8 @@ fn main() {
         let mut input_vector = input_vector_ref.deref_mut();
         handle_input(&mut event_pump, &mut input_vector);
 
+        warrior_ui.draw_to(0, 0, 0, &mut canvas, &texture_map);
+
         // Retrieve and dereference the render queue
         // then render everything within it
         use core::ops::DerefMut;
@@ -152,13 +157,8 @@ fn main() {
             &texture_map,
             &mut render_queue,
             &mut directional_sprite_map,
+            &player_ui_elements,
         );
-
-        // Draw UI elements after drawing the character
-        warrior_ui.draw_to(0, 0, 0, &mut canvas, &texture_map);
-        health_bar.draw_to(0, 49, 5, &mut canvas, &texture_map);
-        magic_bar.draw_to(0, 61, 20, &mut canvas, &texture_map);
-        experience_bar.draw_to(0, 49, 35, &mut canvas, &texture_map);
 
         canvas.present();
 

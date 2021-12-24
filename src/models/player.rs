@@ -23,6 +23,8 @@ pub fn new<'a, T>(
     };
     let state = PlayerState::Idle;
 
+    let stats = PlayerStats::default();
+
     *last_id += 1;
     let id = *last_id;
     let sprites = generate_sprites(
@@ -34,7 +36,7 @@ pub fn new<'a, T>(
         wh_list,
     );
 
-    world.push((Id(id), IsPlayerCharacter, position, state, sprites))
+    world.push((Id(id), IsPlayerCharacter, stats, position, state, sprites))
 }
 
 pub fn generate_sprites<'a, T>(
@@ -111,7 +113,7 @@ pub mod systems {
         position: &Position,
         state: &PlayerState,
         id: &Id,
-        #[resource] resource_queue: &mut Vec<RenderRequest>,
+        #[resource] render_queue: &mut Vec<RenderRequest>,
     ) {
         let Id(id) = *id;
         let position = *position;
@@ -124,7 +126,21 @@ pub mod systems {
             state,
         };
 
-        resource_queue.push(render_request);
+        render_queue.push(render_request);
+    }
+
+    #[system(for_each)]
+    pub fn draw_player_ui(
+        _: &IsPlayerCharacter,
+        stats: &PlayerStats,
+        #[resource] render_queue: &mut Vec<RenderRequest>,
+    ) {
+        println!(
+            "Current: {}, Max: {}",
+            stats.health.current, stats.health.max
+        );
+        let render_request = RenderRequest::PlayerUi(*stats);
+        render_queue.push(render_request);
     }
 
     #[system(for_each)]
