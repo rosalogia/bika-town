@@ -1,34 +1,66 @@
 use super::components::*;
-use crate::rendering::{RenderRequest, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::rendering::{DirectionalAnimation, RenderRequest, WINDOW_HEIGHT, WINDOW_WIDTH};
 use legion::*;
+use sdl2::render::{Texture, TextureCreator};
+use std::collections::HashMap;
 
-/// Produces a new player and pushes it to the world
-pub fn new(
+pub fn new<'a, T>(
     world: &mut World,
-    starting_position: (i32, i32),
-    class: PlayerClass,
-    gender: Gender,
+    texture_creator: &'a TextureCreator<T>,
+    texture_map: &mut HashMap<String, Texture<'a>>,
+    directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
+    last_id: &mut u32,
+    x: i32,
+    y: i32,
+    sprite_dir: &str,
+    wh_list: Vec<Vec<(u32, u32)>>,
 ) -> Entity {
-    let (x, y) = starting_position;
     let position = Position {
         x,
         y,
         velocity: 1,
         direction: Direction::Down,
     };
-
     let state = PlayerState::Idle;
+
     let stats = PlayerStats::default();
 
-    world.push((IsPlayerCharacter, class, gender, stats, position, state))
+    *last_id += 1;
+    let id = *last_id;
+    let sprites = generate_sprites(
+        id,
+        texture_creator,
+        texture_map,
+        directional_sprite_map,
+        sprite_dir,
+        wh_list,
+    );
+
+    world.push((Id(id), IsPlayerCharacter, stats, position, state, sprites))
 }
 
-/// Attempts to move a player to (x, y) but will fail if the move is illegal.
-/// The player's state is set to moving regardless of whether or not the move
-/// actually executes.
-fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) {
-    *state = PlayerState::Moving;
+pub fn generate_sprites<'a, T>(
+    id: u32,
+    texture_creator: &'a TextureCreator<T>,
+    texture_map: &mut HashMap<String, Texture<'a>>,
+    directional_sprite_map: &mut HashMap<u32, Vec<DirectionalAnimation>>,
+    sprite_dir: &str,
+    wh_list: Vec<Vec<(u32, u32)>>,
+) {
+    let names = vec!["Movement", "Idle", "Attack", "Death", "Taking damage"];
 
+    let mut sprites = Vec::with_capacity(5);
+
+    for (name, wh) in names.iter().zip(wh_list.into_iter()) {
+        sprites.push(
+            DirectionalAnimation::new(sprite_dir, wh, name, texture_creator, texture_map).unwrap(),
+        );
+    }
+
+    directional_sprite_map.insert(id, sprites);
+}
+
+fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) {
     if x < 0
         || x >= (WINDOW_WIDTH / 16 * 63) as i32
         || y < 0
@@ -36,6 +68,8 @@ fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) {
     {
         return println!("Tried to move off the board");
     }
+
+    *state = PlayerState::Moving;
 
     let x_movement = (position.x as i32 - x as i32).abs();
     let y_movement = (position.y as i32 - y as i32).abs();
@@ -51,9 +85,6 @@ fn move_to(position: &mut Position, state: &mut PlayerState, x: i32, y: i32) {
     position.y = y;
 }
 
-/// A utility function for handling movement input.
-/// This is just a messy match that I didn't want
-/// cluttering the input system.
 fn handle_movement_input(direction: &Direction, position: &mut Position, state: &mut PlayerState) {
     let move_by = position.velocity * 4;
 
@@ -74,23 +105,23 @@ fn handle_movement_input(direction: &Direction, position: &mut Position, state: 
     position.direction = *direction;
 }
 
-/// Legion systems that affect players
 pub mod systems {
     use super::*;
 
     #[system(for_each)]
     pub fn animate_player(
         position: &Position,
-        class: &PlayerClass,
-        gender: &Gender,
         state: &PlayerState,
+        id: &Id,
         #[resource] render_queue: &mut Vec<RenderRequest>,
     ) {
-        let (class, gender, position, state) = (*class, *gender, *position, *state);
+        let Id(id) = *id;
+        let position = *position;
+        let state = *state;
+        println!("Rendering player in state {:?}", state);
 
         let render_request = RenderRequest::Player {
-            class,
-            gender,
+            id,
             position,
             state,
         };

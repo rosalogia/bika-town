@@ -1,3 +1,7 @@
+use crate::rendering::SpriteSheet;
+use sdl2::render::{Texture, WindowCanvas};
+use std::collections::HashMap;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
     pub x: i32,
@@ -16,8 +20,8 @@ pub enum Direction {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Gender {
-    Male = 0,
-    Female = 1,
+    Male,
+    Female,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -140,8 +144,6 @@ pub enum Input {
     Run,
     Quit,
 }
-
-pub type InputQueue = Vec<Input>;
 
 // pub struct Input(pub sdl2::keyboard::Scancode);
 
