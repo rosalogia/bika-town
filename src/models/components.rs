@@ -1,7 +1,3 @@
-use crate::rendering::SpriteSheet;
-use sdl2::render::{Texture, WindowCanvas};
-use std::collections::HashMap;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
     pub x: i32,
@@ -20,8 +16,8 @@ pub enum Direction {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Gender {
-    Male,
-    Female,
+    Male = 0,
+    Female = 1,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,31 +28,10 @@ pub enum PlayerClass {
     Archer,
 }
 
-pub trait RenderStat {
-    fn render(
-        &self,
-        player_ui_elements: &Vec<SpriteSheet>,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    );
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Health {
     pub current: u32,
     pub max: u32,
-}
-
-impl RenderStat for Health {
-    fn render(
-        &self,
-        player_ui_elements: &Vec<SpriteSheet>,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    ) {
-        let portion = self.current as f32 / self.max as f32;
-        player_ui_elements[0].draw_portion_of(0, 49, 5, portion, 1.0, canvas, texture_map);
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -66,34 +41,10 @@ pub struct Experience {
     pub to_next: u64,
 }
 
-impl RenderStat for Experience {
-    fn render(
-        &self,
-        player_ui_elements: &Vec<SpriteSheet>,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    ) {
-        let portion = self.current as f32 / self.to_next as f32;
-        player_ui_elements[2].draw_portion_of(0, 49, 35, portion, 1.0, canvas, texture_map);
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Mana {
     pub current: u32,
     pub max: u32,
-}
-
-impl RenderStat for Mana {
-    fn render(
-        &self,
-        player_ui_elements: &Vec<SpriteSheet>,
-        texture_map: &HashMap<String, Texture>,
-        canvas: &mut WindowCanvas,
-    ) {
-        let portion = self.current as f32 / self.max as f32;
-        player_ui_elements[1].draw_portion_of(0, 61, 20, portion, 1.0, canvas, texture_map);
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -135,9 +86,6 @@ pub enum PlayerState {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Id(pub u32);
 
-// pub struct PlayerSprites;
-// impl PlayerSprites {}
-
 pub enum Input {
     Move(Direction),
     Attack,
@@ -145,7 +93,7 @@ pub enum Input {
     Quit,
 }
 
-// pub struct Input(pub sdl2::keyboard::Scancode);
+pub type InputQueue = Vec<Input>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IsPlayerCharacter;
