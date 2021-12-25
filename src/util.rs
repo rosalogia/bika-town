@@ -1,17 +1,4 @@
-use crate::rendering::DirectionalAnimation;
-use legion::World;
-use sdl2::render::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-pub struct GlobalState<'a> {
-    pub last_id: u32,
-    pub world: World,
-    pub canvas: WindowCanvas,
-    pub texture_creator: &'a TextureCreator<sdl2::video::WindowContext>,
-    pub texture_map: HashMap<String, Texture<'a>>,
-    pub directional_sprite_map: HashMap<u32, Vec<DirectionalAnimation>>,
-}
 
 #[derive(Deserialize, Serialize)]
 pub struct Config {
@@ -25,6 +12,34 @@ impl Config {
         let contents = std::fs::read_to_string(file)?;
         let config: Config = ron::from_str(&contents)?;
         Ok(config)
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct DirectionalSpriteInfo {
+    pub path: String,
+    pub name: String,
+    pub sprite_dimensions: Vec<(String, Vec<(u32, u32)>)>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SpriteSheetInfo {
+    pub path: String,
+    pub name: String,
+    pub sprite_dimensions: (u32, u32),
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SpriteInfo {
+    pub directional_sprites: Vec<DirectionalSpriteInfo>,
+    pub sprites: Vec<SpriteSheetInfo>,
+}
+
+impl SpriteInfo {
+    pub fn from(file: &'static str) -> Result<Self, Box<dyn std::error::Error>> {
+        let contents = std::fs::read_to_string(file)?;
+        let sprite_info = ron::from_str(&contents)?;
+        Ok(sprite_info)
     }
 }
 
