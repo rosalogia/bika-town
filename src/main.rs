@@ -44,12 +44,12 @@ fn main() {
     // Create the player character;
     // this function pushes the new
     // player to the world automatically
-    let _player = player::new(&mut world, (0, 0), PlayerClass::Warrior, Gender::Male);
+    let _player = player::new(&mut world, (0, 0), PlayerClass::Warrior, Gender::Based);
 
     let mut schedule = Schedule::builder()
         .add_system(player::systems::player_input_system())
         .add_system(player::systems::animate_player_system())
-        // .add_system(player::systems::draw_player_ui_system())
+        .add_system(player::systems::draw_hud_system())
         .build();
 
     let mut then: std::time::Instant;

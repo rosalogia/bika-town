@@ -1,5 +1,5 @@
 use super::components::*;
-use crate::rendering::{RenderRequest, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::rendering::{RenderQueue, RenderRequest, WINDOW_HEIGHT, WINDOW_WIDTH};
 use legion::*;
 
 /// Produces a new player and pushes it to the world
@@ -84,7 +84,7 @@ pub mod systems {
         class: &PlayerClass,
         gender: &Gender,
         state: &PlayerState,
-        #[resource] render_queue: &mut Vec<RenderRequest>,
+        #[resource] render_queue: &mut RenderQueue,
     ) {
         let (class, gender, position, state) = (*class, *gender, *position, *state);
 
@@ -96,6 +96,17 @@ pub mod systems {
         };
 
         render_queue.push(render_request);
+    }
+
+    #[system(for_each)]
+    pub fn draw_hud(
+        _: &IsPlayerCharacter,
+        class: &PlayerClass,
+        gender: &Gender,
+        stats: &PlayerStats,
+        #[resource] render_queue: &mut RenderQueue,
+    ) {
+        render_queue.push(RenderRequest::HUD(*class, *gender, *stats));
     }
 
     #[system(for_each)]
